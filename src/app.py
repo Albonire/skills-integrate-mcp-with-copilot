@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -111,7 +111,7 @@ def signup_for_activity(activity_name: str, email: str):
     return {
         "message": f"Signed up {email} for {activity_name}",
         "status": "signed_up",
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -137,5 +137,5 @@ def unregister_from_activity(activity_name: str, email: str):
     return {
         "message": f"Unregistered {email} from {activity_name}",
         "status": "unregistered",
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }

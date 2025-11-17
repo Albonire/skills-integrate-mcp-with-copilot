@@ -9,6 +9,7 @@ if ROOT not in sys.path:
 
 from fastapi.testclient import TestClient
 from src.app import app
+from datetime import datetime
 
 
 @pytest.fixture
@@ -32,7 +33,11 @@ def test_signup_and_unregister_flow(client):
     # Ensure signup works
     resp = client.post(f"/activities/{activity}/signup?email={email}")
     assert resp.status_code == 200
-    assert f"Signed up {email}" in resp.json().get("message", "")
+    body = resp.json()
+    assert f"Signed up {email}" in body.get("message", "")
+    # Timestamp should be present and ISO-8601 parseable
+    assert "timestamp" in body
+    datetime.fromisoformat(body["timestamp"])
 
     # Signing up again should return 400 (already signed up)
     resp = client.post(f"/activities/{activity}/signup?email={email}")
@@ -41,4 +46,8 @@ def test_signup_and_unregister_flow(client):
     # Unregister
     resp = client.delete(f"/activities/{activity}/unregister?email={email}")
     assert resp.status_code == 200
-    assert f"Unregistered {email}" in resp.json().get("message", "")
+    body = resp.json()
+    assert f"Unregistered {email}" in body.get("message", "")
+    # Timestamp should be present and ISO-8601 parseable
+    assert "timestamp" in body
+    datetime.fromisoformat(body["timestamp"])
