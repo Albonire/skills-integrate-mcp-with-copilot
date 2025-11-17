@@ -30,8 +30,14 @@ def test_signup_and_unregister_flow(client):
     activity = "Chess Club"
     email = "test-student@example.com"
 
-    # Ensure signup works
-    resp = client.post(f"/activities/{activity}/signup?email={email}")
+    # Obtain auth token for demo user and use it for protected endpoints
+    token_resp = client.post("/token", data={"username": "alice@example.com", "password": "password123"})
+    assert token_resp.status_code == 200
+    token = token_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Ensure signup works (authenticated)
+    resp = client.post(f"/activities/{activity}/signup?email={email}", headers=headers)
     assert resp.status_code == 200
     body = resp.json()
     assert f"Signed up {email}" in body.get("message", "")
@@ -40,11 +46,11 @@ def test_signup_and_unregister_flow(client):
     datetime.fromisoformat(body["timestamp"])
 
     # Signing up again should return 400 (already signed up)
-    resp = client.post(f"/activities/{activity}/signup?email={email}")
+    resp = client.post(f"/activities/{activity}/signup?email={email}", headers=headers)
     assert resp.status_code == 400
 
     # Unregister
-    resp = client.delete(f"/activities/{activity}/unregister?email={email}")
+    resp = client.delete(f"/activities/{activity}/unregister?email={email}", headers=headers)
     assert resp.status_code == 200
     body = resp.json()
     assert f"Unregistered {email}" in body.get("message", "")

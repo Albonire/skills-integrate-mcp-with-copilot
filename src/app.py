@@ -5,12 +5,22 @@ A super simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from pydantic import BaseModel
+from src.auth import authenticate_user, create_access_token, get_current_user_from_token
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -90,8 +100,12 @@ def get_activities():
 
 
 @app.post("/activities/{activity_name}/signup")
-def signup_for_activity(activity_name: str, email: str):
+def signup_for_activity(activity_name: str, email: str, token: str = Depends(oauth2_scheme)):
     """Sign up a student for an activity"""
+    # Validate auth token
+    user = get_current_user_from_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
     # Validate activity exists
     if activity_name not in activities:
         raise HTTPException(status_code=404, detail="Activity not found")
@@ -116,8 +130,12 @@ def signup_for_activity(activity_name: str, email: str):
 
 
 @app.delete("/activities/{activity_name}/unregister")
-def unregister_from_activity(activity_name: str, email: str):
+def unregister_from_activity(activity_name: str, email: str, token: str = Depends(oauth2_scheme)):
     """Unregister a student from an activity"""
+    # Validate auth token
+    user = get_current_user_from_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
     # Validate activity exists
     if activity_name not in activities:
         raise HTTPException(status_code=404, detail="Activity not found")
@@ -139,3 +157,13 @@ def unregister_from_activity(activity_name: str, email: str):
         "status": "unregistered",
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+
+@app.post("/token", response_model=Token)
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+    access_token_expires = timedelta(minutes=60)
+    access_token = create_access_token(data={"sub": user}, expires_delta=access_token_expires)
+    return {"access_token": access_token, "token_type": "bearer"}
